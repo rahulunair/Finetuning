@@ -48,6 +48,14 @@ class Trainer:
             self.optimizer.step()
             print(f"[Epoch: {epoch+1}] loss: {loss.item()} acc: {acc}")
 
+    def _to_ipx(self, dtype=torch.float32):
+        """convert model memory format to channels_last to IPEX format."""
+        self.model.train()
+        self.model = self.model.to(memory_format=torch.channels_last)
+        self.model, self.optimizer = ipex.optimize(
+            self.model, optimizer=self.optimizer, dtype=torch.float32
+        )
+
     def train(self, train_dataloader):
         """Training loop, return epoch loss and accuracy."""
         self.model.train()
@@ -86,6 +94,10 @@ class Trainer:
         `valid_dataloader`: validation set
         """
         print(f"Fine-tuning model for {self.epochs} epochs with lr = {self.lr}")
+        if self.precision == "bf16":
+            self._to_ipex(dtype=torch.bfloat16)
+        else:
+            self._to_ipex(dtype=torch.float32)
         for epoch in range(self.epochs):
             print(f"Epoch: [{epoch+1}]")
             t_epoch_loss, t_epoch_acc = self.train(train_dataloader)
