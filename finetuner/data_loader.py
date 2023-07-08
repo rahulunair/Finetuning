@@ -5,16 +5,24 @@ import pathlib
 
 from torchvision import transforms
 import matplotlib.pyplot as plt
+import fnmatch
+import os
+
+import cv2
+from albumentations import HorizontalFlip, VerticalFlip, RandomRotate90, Compose
 
 imagenet_stats = [[0.485, 0.456, 0.406], [0.229, 0.224, 0.225]]
 data_dir = pathlib.Path("./data/output/")
 TRAIN_DIR = data_dir / "train"
 VALID_DIR = data_dir / "val"
+TRAIN_AUGMENTED_DIR = data_dir / "train_augmented"
+VALID_AUGMENTED_DIR = data_dir / "valid_augmented"
 
-# Define transforms for training and validation data.
+
 img_transforms = {
     "train": transforms.Compose(
         [
+            transforms.Resize((224, 224)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.RandomRotation(45),
@@ -23,9 +31,39 @@ img_transforms = {
         ]
     ),
     "valid": transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize(*imagenet_stats)]
+        [
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(*imagenet_stats),
+        ]
     ),
 }
+
+
+def augment_and_save(path, output_path, target_number=1000):
+    subfolders = [f.path for f in os.scandir(path) if f.is_dir()]
+    for subfolder in subfolders:
+        class_name = os.path.basename(subfolder)
+        output_class_path = os.path.join(output_path, class_name)
+        os.makedirs(output_class_path, exist_ok=True)
+        images = fnmatch.filter(os.listdir(subfolder), "*.png")
+        augmentations_per_image = max(target_number // len(images), 1)
+        augmentations = Compose(
+            [
+                HorizontalFlip(),
+                VerticalFlip(),
+                RandomRotate90(),
+            ]
+        )
+        for image in images:
+            image_path = os.path.join(subfolder, image)
+            img = cv2.imread(image_path)
+            for i in range(augmentations_per_image):
+                augmented = augmentations(image=img)
+                cv2.imwrite(
+                    os.path.join(output_class_path, f"{image}_{i}.png"),
+                    augmented["image"],
+                )
 
 
 def _denormalize(images, imagenet_stats):
@@ -34,12 +72,14 @@ def _denormalize(images, imagenet_stats):
     std = torch.tensor(imagenet_stats[1]).reshape(1, 3, 1, 1)
     return images * std + mean
 
+
 def show_data(dataloader, imagenet_stats=imagenet_stats, num_data=2):
     """Show `num_data` of images and labels from dataloader."""
+    device = "xpu" if torch.xpu.is_available() else "cpu"
     batch = next(iter(dataloader))  # batch of with images, batch of labels
-    imgs, labels = batch[0][:num_data].to(device), batch[1][:num_data].tolist()  # get num_data of images, labels
+    imgs, labels = batch[0][:num_data].to(device), batch[1][:num_data].tolist()
 
-    if plt.get_backend() == 'agg':
+    if plt.get_backend() == "agg":
         print(f"Labels for {num_data} images: {labels}")
     else:
         _, axes = plt.subplots(1, num_data, figsize=(10, 6))
@@ -49,22 +89,25 @@ def show_data(dataloader, imagenet_stats=imagenet_stats, num_data=2):
             axes[n].imshow(torch.clamp(imgs[n].cpu(), 0, 1).permute(1, 2, 0))
         plt.show()
 
+
 def data_distribution(dataset, path: str) -> dict:
     """
     Returns a dictionary with the distribution of each class in the dataset.
     """
-    class_counts = {cls: len(fnmatch.filter(os.listdir(f"{path}/{cls}"), "*.png")) 
-                    for cls in dataset.class_to_idx.keys()}
+    class_counts = {
+        cls: len(fnmatch.filter(os.listdir(f"{path}/{cls}"), "*.png"))
+        for cls in dataset.class_to_idx.keys()
+    }
     return class_counts
+
 
 def plot_data_distribution(data_dist: dict, title: str = ""):
     """
     Plots or prints the distribution of data depending on the availability of a display.
     """
-    if plt.get_backend() == 'agg':
+    if plt.get_backend() == "agg":
         print(f"{title}: {data_dist}")
     else:
         classes, counts = list(data_dist.keys()), list(data_dist.values())
         sns.barplot(x=classes, y=counts).set_title(title)
         plt.show()
-

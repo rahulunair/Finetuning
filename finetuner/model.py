@@ -13,7 +13,7 @@ class FireFinder(nn.Module):
     We currently use the resnet18 model as a backbone
     """
 
-    def __init__(self, backbone=18, simple=True, dropout= .4):
+    def __init__(self, backbone=18, simple=True, dropout= .4, n_classes=2):
         super(FireFinder, self).__init__()
         backbones = {
             18: models.resnet18,
@@ -21,14 +21,14 @@ class FireFinder(nn.Module):
             50: models.resnet50,
             101: models.resnet101,
         }
-        #self.network = backbones[backbone](pretrained=True)
-        self.network = backbones[backbone](weights=True)
+        self.network = backbones[backbone](pretrained=True)
+        #self.network = backbones[backbone](weights=True)
         #self.network = backbones[backbone](weights='ResNet18_Weights.DEFAULT')
         for m, p in zip(self.network.modules(), self.network.parameters()):
             if isinstance(m, nn.BatchNorm2d):
                 p.requires_grad = False
         if simple:
-            self.network.fc = nn.Linear(self.network.fc.in_features, 3)
+            self.network.fc = nn.Linear(self.network.fc.in_features, n_classes)
             nn.init.xavier_uniform_(self.network.fc.weight)
         else:
             fc = nn.Sequential(
@@ -36,9 +36,8 @@ class FireFinder(nn.Module):
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Linear(
-                    256, 2
-                ),  # here we are using 3 for `out_features` as the image given
-                # to the model can be one of 3 classes (0 - no bone, 1 - bone possible, 2 - bone likely)
+                    256, n_classes
+                    )
             )
             for layer in fc.modules():
                 if isinstance(layer, nn.Linear):
