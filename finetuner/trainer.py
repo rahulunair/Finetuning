@@ -33,10 +33,12 @@ class Trainer:
         self.optimizer = optimizer(self.model.parameters(), lr=self.lr)
 
         # Initialize the learning rate scheduler
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min')
-        #self.scheduler = torch.optim.lr_scheduler.StepLR(
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimizer, "min"
+        )
+        # self.scheduler = torch.optim.lr_scheduler.StepLR(
         #    self.optimizer, step_size=30, gamma=0.1
-        #)
+        # )
 
         # Check if the optimizer is an instance of Adam
         if isinstance(optimizer, torch.optim.Adam):
@@ -105,11 +107,10 @@ class Trainer:
                         "Training Acc": acc,
                     }
                 )
-        #self.scheduler.step()
+        # self.scheduler.step()
         return total_loss / len(train_dataloader), acc
 
-    #@torch.no_grad()
-    #
+    @torch.no_grad()
     def validate(self, valid_dataloader):
         """Validation loop, return validation epoch loss and accuracy."""
         self.model.eval()
@@ -154,19 +155,21 @@ class Trainer:
                 loss, correct, total = self.forward_pass(inputs, labels)
             loss.backward()
             self.optimizer.step()
-            #lr_scheduler.step()
-
-            # Log the learning rate and loss
+            lr_scheduler.step()
             lrs.append(self.optimizer.param_groups[0]["lr"])
             losses.append(loss.item())
             if self.use_wandb:
                 wandb.log({"lr": lrs[-1], "loss": losses[-1]})
-
-        # Restore the original state of the model and optimizer
+        increase_indices = [
+            i for i in range(1, len(losses)) if losses[i] - losses[i - 1] > 0
+        ]
+        if increase_indices:
+            min_loss_idx = increase_indices[0] - 1
+        else:
+            min_loss_idx = np.argmin(losses)
+        self.lr = lrs[min_loss_idx]
         self.model.load_state_dict(orig_model_state_dict)
         self.optimizer.load_state_dict(orig_opt_state_dict)
-        min_loss_idx = np.argmin(losses)
-        self.lr = lrs[min_loss_idx]
         table = list(zip(lrs, losses))
         print(tabulate(table, headers=["Learning Rate", "Loss"], tablefmt="pretty"))
 
@@ -184,7 +187,7 @@ class Trainer:
 
             print(
                 f"\n📅 Epoch {epoch+1}/{self.epochs}:\n"
-                f"\t🏋️‍♂️ Traiing step:\n"
+                f"\t🏋️‍♂️ Traniing step:\n"
                 f"\t - 🎯 Loss: {t_epoch_loss:.4f}"
                 f", 📈 Accuracy: {t_epoch_acc:.4f}\n"
                 f"\t🧪 Validation step:\n"

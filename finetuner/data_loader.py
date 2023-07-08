@@ -15,8 +15,6 @@ imagenet_stats = [[0.485, 0.456, 0.406], [0.229, 0.224, 0.225]]
 data_dir = pathlib.Path("./data/output/")
 TRAIN_DIR = data_dir / "train"
 VALID_DIR = data_dir / "val"
-TRAIN_AUGMENTED_DIR = data_dir / "train_augmented"
-VALID_AUGMENTED_DIR = data_dir / "valid_augmented"
 
 
 img_transforms = {
@@ -39,13 +37,9 @@ img_transforms = {
     ),
 }
 
-
-def augment_and_save(path, output_path, target_number=1000):
+def augment_and_save(path, target_number=1000):
     subfolders = [f.path for f in os.scandir(path) if f.is_dir()]
     for subfolder in subfolders:
-        class_name = os.path.basename(subfolder)
-        output_class_path = os.path.join(output_path, class_name)
-        os.makedirs(output_class_path, exist_ok=True)
         images = fnmatch.filter(os.listdir(subfolder), "*.png")
         augmentations_per_image = max(target_number // len(images), 1)
         augmentations = Compose(
@@ -60,8 +54,9 @@ def augment_and_save(path, output_path, target_number=1000):
             img = cv2.imread(image_path)
             for i in range(augmentations_per_image):
                 augmented = augmentations(image=img)
+                new_filename = os.path.splitext(image)[0] + f"_{i}.png"
                 cv2.imwrite(
-                    os.path.join(output_class_path, f"{image}_{i}.png"),
+                    os.path.join(subfolder, new_filename),
                     augmented["image"],
                 )
 
