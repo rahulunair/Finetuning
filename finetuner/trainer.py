@@ -33,9 +33,10 @@ class Trainer:
         self.optimizer = optimizer(self.model.parameters(), lr=self.lr)
 
         # Initialize the learning rate scheduler
-        self.scheduler = torch.optim.lr_scheduler.StepLR(
-            self.optimizer, step_size=30, gamma=0.1
-        )
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min')
+        #self.scheduler = torch.optim.lr_scheduler.StepLR(
+        #    self.optimizer, step_size=30, gamma=0.1
+        #)
 
         # Check if the optimizer is an instance of Adam
         if isinstance(optimizer, torch.optim.Adam):
@@ -104,10 +105,11 @@ class Trainer:
                         "Training Acc": acc,
                     }
                 )
-        self.scheduler.step()
+        #self.scheduler.step()
         return total_loss / len(train_dataloader), acc
 
-    @torch.no_grad()
+    #@torch.no_grad()
+    #
     def validate(self, valid_dataloader):
         """Validation loop, return validation epoch loss and accuracy."""
         self.model.eval()
@@ -126,6 +128,7 @@ class Trainer:
                         "Validation Acc": acc,
                     }
                 )
+        self.scheduler.step(total_loss / len(valid_dataloader))
         return total_loss / len(valid_dataloader), acc
 
     def lr_range_test(self, train_dataloader, start_lr=1e-7, end_lr=1e-2, num_iter=100):

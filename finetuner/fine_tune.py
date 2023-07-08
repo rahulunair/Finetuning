@@ -132,7 +132,7 @@ if __name__ == "__main__":
         print("Done Augmenting...")
     TRAIN_DIR = TRAIN_AUGMENTED_DIR
     VALID_DIR = VALID_AUGMENTED_DIR
-    model = FireFinder(simple=False, dropout=0.1)
+    model = FireFinder(simple=False, dropout=0.5)
     input_size = (3, 224, 224)
     print(f"Finding optimum batch size...")
     # batch_size = optimum_batch_size(model, input_size)
