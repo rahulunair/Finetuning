@@ -10,10 +10,10 @@ class FireFinder(nn.Module):
     0 - no Fire
     1 - Fire
 
-    We currently use the resnet18 model as a backbone
+    We currently use the resnet50 model as a backbone
     """
 
-    def __init__(self, backbone=18, simple=True, dropout= .4, n_classes=2):
+    def __init__(self, backbone=18, simple=True, dropout= .4, n_classes=2, feature_extractor=False):
         super(FireFinder, self).__init__()
         backbones = {
             18: models.resnet18,
@@ -24,6 +24,12 @@ class FireFinder(nn.Module):
         self.network = backbones[backbone](pretrained=True)
         #self.network = backbones[backbone](weights=True)
         #self.network = backbones[backbone](weights='ResNet18_Weights.DEFAULT')
+        if feature_extractor:
+            print("Running in future extractor mode.")
+            for param in self.network.parameters():
+                param.requires_grad = False
+        else:
+            print("Running in Finetuning mode.")
         for m, p in zip(self.network.modules(), self.network.parameters()):
             if isinstance(m, nn.BatchNorm2d):
                 p.requires_grad = False

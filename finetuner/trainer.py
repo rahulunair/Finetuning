@@ -137,7 +137,7 @@ class Trainer:
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = start_lr
         lr_lambda = lambda x: (end_lr / start_lr) ** (x / num_iter)
-        #lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)
+        lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)
         self.model.train()
         for i, (inputs, labels) in enumerate(tqdm(infinite_train_dataloader)):
             if i >= num_iter:
