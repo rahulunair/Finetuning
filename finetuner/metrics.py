@@ -1,6 +1,7 @@
 # ## Define Metrics - Utility class to measure accuracy of the model and plot metrics
 from config import torch
 
+
 class Metrics:
     """class that holds logic for calculating accuracy and printing it"""
 
@@ -13,7 +14,7 @@ class Metrics:
     def accuracy(yhat, labels, debug):
         """accuracy of a batch"""
         yhat = torch.log_softmax(yhat, dim=1)  # softmax of logit output
-        yhat = yhat.max(1)[1]# get index of max values
+        yhat = yhat.max(1)[1]  # get index of max values
         if debug:
             print(f"outputs: {yhat} labels: {labels}")
             print(f" output == label ?: {torch.equal(yhat, labels)}")
@@ -29,8 +30,12 @@ class Metrics:
     def plot(self):
         """plot loss and acc curves"""
         if plt.get_backend() == "agg":
-            print("Average training accuracy score: {sum(acc['train'])/len(acc['train'])}")
-            print("Average validation accuracy score: {sum(acc['val'])/len(acc['val'])}")
+            print(
+                "Average training accuracy score: {sum(acc['train'])/len(acc['train'])}"
+            )
+            print(
+                "Average validation accuracy score: {sum(acc['val'])/len(acc['val'])}"
+            )
         else:
             train_acc = [x * 100 for x in self.acc["train"]]
             val_acc = [x * 100 for x in self.acc["val"]]
@@ -49,4 +54,3 @@ class Metrics:
                 x.legend(["train", "validation"])
                 x.set_xlabel("epoch")
             plt.show()
-

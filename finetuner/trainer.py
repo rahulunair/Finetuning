@@ -1,13 +1,10 @@
 import torch
 import intel_extension_for_pytorch as ipex
 import os
-
-from config import device, torch
 from tqdm import tqdm
 import time
 import wandb
-import numpy as np
-from tabulate import tabulate
+from config import device
 
 
 class Trainer:
@@ -16,13 +13,15 @@ class Trainer:
     def __init__(
         self,
         model,
-        optimizer=torch.optim.SGD,
+        optimizer,
+        lr,
         epochs=10,
-        lr=0.05,
         precision="fp32",
         device=device,
         use_wandb=False,
+        use_ipex=False
     ):
+        self.use_ipex = use_ipex 
         self.use_wandb = use_wandb
         self.device = device
         self.model = model.to(self.device)
@@ -31,23 +30,9 @@ class Trainer:
         self.lr = lr
         self.precision = precision
         self.optimizer = optimizer(self.model.parameters(), lr=self.lr)
-
-        # Initialize the learning rate scheduler
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, "min"
+            self.optimizer, "min", verbose=True
         )
-        # self.scheduler = torch.optim.lr_scheduler.StepLR(
-        #    self.optimizer, step_size=30, gamma=0.1
-        # )
-
-        # Check if the optimizer is an instance of Adam
-        if isinstance(optimizer, torch.optim.Adam):
-            self.lr = lr
-
-    def update_learning_rate(self, lr):
-        """Update learning rate of the optimizer"""
-        for param_group in self.optimizer.param_groups:
-            param_group["lr"] = lr
 
     def forward_pass(self, inputs, labels):
         """Perform forward pass of models with `inputs`,
@@ -59,20 +44,6 @@ class Trainer:
         correct = preds.eq(labels.view_as(preds)).sum().item()
         total = labels.numel()
         return loss, correct, total
-
-    def train_one_batch(self, train_dataloader, max_epoch=100):
-        """Train the model using just one batch for max_epoch.
-        use this function to debug the training loop"""
-        self.model.train()
-        inputs, labels = next(iter(train_dataloader))
-        for epoch in range(max_epoch):
-            inputs, labels = inputs.to(self.device), labels.to(self.device)
-            self.optimizer.zero_grad()
-            loss, correct, total = self.forward_pass(inputs, labels)
-            loss.backward()
-            self.optimizer.step()
-            acc = correct / total
-            print(f"[Epoch: {epoch+1}] loss: {loss.item()} acc: {acc}")
 
     def _to_ipex(self, dtype=torch.float32):
         """convert model memory format to channels_last to IPEX format."""
@@ -107,7 +78,6 @@ class Trainer:
                         "Training Acc": acc,
                     }
                 )
-        # self.scheduler.step()
         return total_loss / len(train_dataloader), acc
 
     @torch.no_grad()
@@ -132,62 +102,19 @@ class Trainer:
         self.scheduler.step(total_loss / len(valid_dataloader))
         return total_loss / len(valid_dataloader), acc
 
-    def lr_range_test(self, train_dataloader, start_lr=1e-7, end_lr=1e-2, num_iter=100):
-        infinite_train_dataloader = train_dataloader
-        orig_model_state_dict = self.model.state_dict()
-        orig_opt_state_dict = self.optimizer.state_dict()
-        lrs = []
-        losses = []
-        for param_group in self.optimizer.param_groups:
-            param_group["lr"] = start_lr
-        lr_lambda = lambda x: (end_lr / start_lr) ** (x / num_iter)
-        lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)
-        self.model.train()
-        for i, (inputs, labels) in enumerate(tqdm(infinite_train_dataloader)):
-            if i >= num_iter:
-                break
-            inputs, labels = inputs.to(self.device), labels.to(self.device)
-            self.optimizer.zero_grad()
-            if self.precision == "bf16":
-                with getattr(torch, f"{self.device.type}.amp.autocast")():
-                    loss, correct, total = self.forward_pass(inputs, labels)
-            else:
-                loss, correct, total = self.forward_pass(inputs, labels)
-            loss.backward()
-            self.optimizer.step()
-            lr_scheduler.step()
-            lrs.append(self.optimizer.param_groups[0]["lr"])
-            losses.append(loss.item())
-            if self.use_wandb:
-                wandb.log({"lr": lrs[-1], "loss": losses[-1]})
-        increase_indices = [
-            i for i in range(1, len(losses)) if losses[i] - losses[i - 1] > 0
-        ]
-        if increase_indices:
-            min_loss_idx = increase_indices[0] - 1
-        else:
-            min_loss_idx = np.argmin(losses)
-        self.lr = lrs[min_loss_idx]
-        self.model.load_state_dict(orig_model_state_dict)
-        self.optimizer.load_state_dict(orig_opt_state_dict)
-        table = list(zip(lrs, losses))
-        print(tabulate(table, headers=["Learning Rate", "Loss"], tablefmt="pretty"))
-
     def fine_tune(self, train_dataloader, valid_dataloader):
+        if self.use_ipex:
+            self._to_ipex()
         if self.use_wandb:
-            wandb.init(project="cnn-training", name="cnn-model")
-
+            wandb.init(project="fire-finder", name="fire-finder")
         for epoch in range(self.epochs):
             t_epoch_start = time.time()
-
             t_epoch_loss, t_epoch_acc = self.train(train_dataloader)
             v_epoch_loss, v_epoch_acc = self.validate(valid_dataloader)
-
             t_epoch_end = time.time()
-
             print(
                 f"\n📅 Epoch {epoch+1}/{self.epochs}:\n"
-                f"\t🏋️‍♂️ Traniing step:\n"
+                f"\t🏋️‍♂️ Training step:\n"
                 f"\t - 🎯 Loss: {t_epoch_loss:.4f}"
                 f", 📈 Accuracy: {t_epoch_acc:.4f}\n"
                 f"\t🧪 Validation step:\n"

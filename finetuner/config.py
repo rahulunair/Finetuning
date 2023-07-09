@@ -5,14 +5,16 @@ import torch
 # Default to no XPU
 HAS_XPU = False
 
+
 def set_config(device):
     """Attempt to set CPU configuration for torch."""
     global HAS_XPU
     if device == torch.device("xpu"):
         os.environ["IPEX_TILE_AS_DEVICE"] = "0"
-        HAS_XPU=True
+        HAS_XPU = True
     try:
         import psutil
+
         num_physical_cores = psutil.cpu_count(logical=False)
         os.environ["OMP_NUM_THREADS"] = str(num_physical_cores)
         print(f"OMP_NUM_THREADS set to: {num_physical_cores}")
@@ -25,6 +27,7 @@ def set_device():
     try:
         import torch
         import intel_extension_for_pytorch as ipex
+
         if torch.xpu.is_available():
             device = torch.device("xpu")
             print(f"XPU devices available: {torch.xpu.device_count()}")
@@ -35,6 +38,7 @@ def set_device():
     except ImportError as error:
         print("Failed to import torch / ipex.")
         print(error)
+
 
 os.environ["KMP_AFFINITY"] = "granularity=fine,compact,1,0"
 os.environ["KMP_BLOCKTIME"] = "1"
@@ -51,6 +55,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch.nn as nn
 
+
 def seed_everything(seed: int = 4242):
     """set all random seeds using `seed`"""
     print(f"seed set to: {seed}")
@@ -65,4 +70,3 @@ def seed_everything(seed: int = 4242):
 def ncores() -> int:
     """Get number of physical cores"""
     return psutil.cpu_count(logical=False)
-

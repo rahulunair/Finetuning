@@ -2,6 +2,7 @@ from config import torch
 from config import seed_everything
 
 import pathlib
+import plotext as tplt
 
 from torchvision import transforms
 import matplotlib.pyplot as plt
@@ -36,6 +37,7 @@ img_transforms = {
         ]
     ),
 }
+
 
 def augment_and_save(path, target_number=1000):
     subfolders = [f.path for f in os.scandir(path) if f.is_dir()]
@@ -97,12 +99,11 @@ def data_distribution(dataset, path: str) -> dict:
 
 
 def plot_data_distribution(data_dist: dict, title: str = ""):
-    """
-    Plots or prints the distribution of data depending on the availability of a display.
-    """
+    classes, counts = list(data_dist.keys()), list(data_dist.values())
+
     if plt.get_backend() == "agg":
-        print(f"{title}: {data_dist}")
+        tplt.simple_bar(classes, counts, width=100, title=title)
+        tplt.show()
     else:
-        classes, counts = list(data_dist.keys()), list(data_dist.values())
         sns.barplot(x=classes, y=counts).set_title(title)
         plt.show()
