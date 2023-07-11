@@ -17,7 +17,7 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
 from batch_finder import optimum_batch_size
-from config import device
+from config import set_seed, device
 from data_loader import (
     TRAIN_DIR,
     VALID_DIR,
@@ -36,19 +36,8 @@ from torch import optim
 
 
 # Constants
-EPOCHS = 4
+EPOCHS = 10
 LR = 2.14e-4
-
-
-def set_seed(seed_value=42):
-    random.seed(seed_value)
-    np.random.seed(seed_value)
-    torch.manual_seed(seed_value)
-    if torch.xpu.is_available():
-        torch.xpu.manual_seed(seed_value)
-        torch.xpu.manual_seed_all(seed_value)
-        torch.backends.mkldnn.deterministic = True
-        torch.backends.mkldnn.benchmark = False
 
 
 def create_dataloader(directory, batch_size, shuffle=False, transform=None):
@@ -62,10 +51,6 @@ def setup_dataloaders(config):
     ), create_dataloader(
         VALID_DIR, config["batch_size"], transform=img_transforms["valid"]
     )
-
-
-def setup_device():
-    return "xpu" if torch.xpu.is_available() else "cpu"
 
 
 def find_lr(model, optimizer, dataloader):
@@ -88,17 +73,15 @@ def train(model, trainer, config):
     print(f"Time elapsed: {time.time() - start} seconds.")
 
 
-def main():
+def main(aug_data=False):
     set_seed(42)
-    augment_data = False
-    if augment_data:
+    if aug_data:
         print("Augmenting dataset...")
         augment_and_save(TRAIN_DIR)
         augment_and_save(VALID_DIR)
         print("Done Augmenting...")
     model = FireFinder(simple=True, dropout=0.5)
     optimizer = optim.Adam(model.parameters(), lr=LR)
-    device = setup_device()
     print(f"Finding optimum batch size...")
     # batch_size = optimum_batch_size(model, input_size)
     batch_size = 128
@@ -113,7 +96,7 @@ def main():
     print(f"Found best learning rate: {best_lr}")
     del model, optimizer
     gc.collect()
-    if device == "xpu":
+    if device == torch.device("xpu"):
         torch.xpu.empty_cache()
     model = FireFinder(simple=True, dropout=0.5)
     trainer = Trainer(
@@ -129,4 +112,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(aug_data=True)
