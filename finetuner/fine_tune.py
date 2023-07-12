@@ -106,7 +106,7 @@ def main(aug_data=False):
         epochs=EPOCHS,
         device=device,
         use_wandb=True,
-        use_ipex=True
+        use_ipex=True,
     )
     train(model, trainer, config={"lr": best_lr, "batch_size": batch_size})
 
