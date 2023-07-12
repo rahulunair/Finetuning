@@ -60,7 +60,7 @@ def set_device(overide=False,device="cpu"):
 
 os.environ["KMP_AFFINITY"] = "granularity=fine,compact,1,0"
 os.environ["KMP_BLOCKTIME"] = "1"
-device = set_device(True,"cpu")
+device = set_device(False,"") # True, "device_name" if need to set a specific device.
 set_config(device)
 
 # Other imports
