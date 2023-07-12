@@ -1,4 +1,5 @@
 from config import torch
+from config import device
 from config import seed_everything
 
 import pathlib
@@ -38,8 +39,8 @@ img_transforms = {
     ),
 }
 
-
 def augment_and_save(path, target_number=1000):
+    """augment dataset if total number per class is less than 1000 and save to data dir."""
     subfolders = [f.path for f in os.scandir(path) if f.is_dir()]
     for subfolder in subfolders:
         images = fnmatch.filter(os.listdir(subfolder), "*.png")
@@ -62,7 +63,6 @@ def augment_and_save(path, target_number=1000):
                     augmented["image"],
                 )
 
-
 def _denormalize(images, imagenet_stats):
     """De-normalize dataset using imagenet std and mean to show images."""
     mean = torch.tensor(imagenet_stats[0]).reshape(1, 3, 1, 1)
@@ -72,8 +72,7 @@ def _denormalize(images, imagenet_stats):
 
 def show_data(dataloader, imagenet_stats=imagenet_stats, num_data=2):
     """Show `num_data` of images and labels from dataloader."""
-    device = "xpu" if torch.xpu.is_available() else "cpu"
-    batch = next(iter(dataloader))  # batch of with images, batch of labels
+    batch = next(iter(dataloader))
     imgs, labels = batch[0][:num_data].to(device), batch[1][:num_data].tolist()
 
     if plt.get_backend() == "agg":
