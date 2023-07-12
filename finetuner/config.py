@@ -34,28 +34,20 @@ def set_seed(seed_value=42):
 def set_device(overide=False,device="cpu"):
     """Attempt to import torch and ipex. Set device depending on availability."""
     if overide:
-        return device
+        return torch.device(device)
     try:
         import torch
         import intel_extension_for_pytorch as ipex
-
         if torch.xpu.is_available():
-            device = torch.device("xpu")
-            torch.xpu.manual_seed(seed_value)
-            torch.xpu.manual_seed_all(seed_value)
-            try:
-                torch.backends.mkldnn.deterministic = True
-                torch.backends.mkldnn.benchmark = False
-            except:
-                pass
-            print(f"XPU devices available, using 'xpu:{torch.xpu.device_count}' device: {torch.xpu.device_count()}")
+            device = f"xpu:{torch.xpu.device_count()}"
+            print(f"XPU devices available, using {device}")
             print(f"XPU device name: {torch.xpu.get_device_name(0)}")
         else:
-            device = torch.device("cpu")
-        return device
+            device = "cpu"
     except ImportError as error:
         print("Failed to import torch / ipex.")
-        print(error)
+        device = "cpu"
+    return torch.device(device)
 
 
 os.environ["KMP_AFFINITY"] = "granularity=fine,compact,1,0"
