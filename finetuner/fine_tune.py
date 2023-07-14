@@ -39,7 +39,6 @@ from torch import optim
 EPOCHS = 10
 LR = 2.14e-4
 
-
 def create_dataloader(directory, batch_size, shuffle=False, transform=None):
     data = datasets.ImageFolder(directory, transform=transform)
     return DataLoader(data, batch_size=batch_size, shuffle=shuffle)

@@ -1,4 +1,5 @@
 import os
+import random
 
 import torch
 
@@ -39,7 +40,9 @@ def set_device(overide=False,device="cpu"):
         import torch
         import intel_extension_for_pytorch as ipex
         if torch.xpu.is_available():
-            device = f"xpu:{torch.xpu.device_count()}"
+            device = torch.xpu.device_count()
+            device = random.randint(0, int(device) - 1)
+            device = f"xpu:{device}"
             print(f"XPU devices available, using {device}")
             print(f"XPU device name: {torch.xpu.get_device_name(0)}")
         else:
@@ -52,7 +55,8 @@ def set_device(overide=False,device="cpu"):
 
 os.environ["KMP_AFFINITY"] = "granularity=fine,compact,1,0"
 os.environ["KMP_BLOCKTIME"] = "1"
-device = set_device(False,"") # True, "device_name" if need to set a specific device.
+#device = set_device(True,"cpu") # True, "device_name" if need to set a specific device.
+device = set_device(False,"")
 set_config(device)
 
 # Other imports
