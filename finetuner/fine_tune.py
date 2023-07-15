@@ -120,7 +120,7 @@ def train(model: FireFinder, trainer: Trainer, config: dict):
 def main(
     aug_data: bool = False,
     find_batch: bool = False,
-    find_lr: bool = False,
+    find_lr_rate: bool = False,
     use_wandb: bool = False,
     use_ipex=True,
 ):
@@ -130,28 +130,29 @@ def main(
     Args:
         aug_data (bool, optional): Whether to augment data. Defaults to False.
         find_batch (bool, optional): Whether to find optimal batch size. Defaults to False.
-        find_lr (bool, optional): Whether to find optimal learning rate. Defaults to False.
+        find_lr_rate (bool, optional): Whether to find optimal learning rate. Defaults to False.
     """
     set_seed(42)
     print(f"Using epoch: {EPOCHS}")
 
     if aug_data:
-        print("Augmenting dataset...")
+        print("Augmenting training and validation datasets...")
+        t1 = time.time()
         augment_and_save(TRAIN_DIR)
         augment_and_save(VALID_DIR)
-        print("Done Augmenting...")
+        print(f"Done Augmenting in {time.time() - t1} seconds...")
 
     batch_size = 128  # Default batch size
+    model = FireFinder(simple=True, dropout=0.5)
+    optimizer = optim.Adam(model.parameters(), lr=LR)
     if find_batch:
         print(f"Finding optimum batch size...")
-        batch_size = optimum_batch_size(model, input_size)
+        batch_size = optimum_batch_size(model, input_size=(3, 224, 224))
     print(f"Using batch size: {batch_size}")
 
     best_lr = LR
-    if find_lr:
+    if find_lr_rate:
         print("Finding best init lr...")
-        model = FireFinder(simple=True, dropout=0.5)
-        optimizer = optim.Adam(model.parameters(), lr=LR)
         train_dataloader = create_dataloader(
             TRAIN_DIR,
             batch_size=batch_size,
@@ -180,5 +181,5 @@ def main(
 
 if __name__ == "__main__":
     main(
-        aug_data=False, find_batch=False, find_lr=False, use_wandb=False, use_ipex=True
+        aug_data=False, find_batch=True, find_lr_rate=True, use_wandb=True, use_ipex=True
     )

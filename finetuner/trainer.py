@@ -19,9 +19,9 @@ class Trainer:
         precision="fp32",
         device=device,
         use_wandb=False,
-        use_ipex=False
+        use_ipex=False,
     ):
-        self.use_ipex = use_ipex 
+        self.use_ipex = use_ipex
         self.use_wandb = use_wandb
         self.device = device
         self.model = model.to(self.device)

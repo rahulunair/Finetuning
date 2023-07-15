@@ -8,6 +8,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 
+from config import device
+
 
 def estimate_batch_size(memory_usage_data, total_memory):
     """estimates the maximum feasible batch size using a polynomial regression model.
@@ -67,7 +69,6 @@ def find_optimal_batch_size(
     return:
     list of tuple: List containing data points of the form (batch_size, memory_allocated)
     """
-    print("xpu yay")
     device = f"xpu:{torch.xpu.current_device()}"
     model = model.to(device)
     memory_usage_data = []
@@ -99,6 +100,8 @@ def optimum_batch_size(model, input_size):
     if not torch.xpu.is_available():
         print(f"No XPU available., using : {torch.device('cpu')}")
         return 64
-    total_memory = torch.xpu.get_device_properties(device).total_memory
-    memory_usage_data = find_optimal_batch_size(model, input_size)
-    return estimate_batch_size(memory_usage_data, total_memory)
+    return 64
+    # todo fix this code, there is an issue with batch size finder failing
+    #total_memory = torch.xpu.get_device_properties(device).total_memory
+    #memory_usage_data = find_optimal_batch_size(model, input_size)
+    #return estimate_batch_size(memory_usage_data, total_memory)

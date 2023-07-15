@@ -39,6 +39,7 @@ img_transforms = {
     ),
 }
 
+
 def augment_and_save(path, target_number=1000):
     """augment dataset if total number per class is less than 1000 and save to data dir."""
     subfolders = [f.path for f in os.scandir(path) if f.is_dir()]
@@ -62,6 +63,7 @@ def augment_and_save(path, target_number=1000):
                     os.path.join(subfolder, new_filename),
                     augmented["image"],
                 )
+
 
 def _denormalize(images, imagenet_stats):
     """De-normalize dataset using imagenet std and mean to show images."""
