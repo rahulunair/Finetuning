@@ -29,7 +29,7 @@ import torch.nn as nn
 HAS_XPU = torch.xpu.is_available() if ipex else False
 
 
-def set_config(device):
+def set_config(device: torch.device):
     """Set CPU and XPU configuration for torch."""
     if device == torch.device("xpu"):
         # pvc 1550 has 2 tiles, ipex would use it as one single device
@@ -42,7 +42,7 @@ def set_config(device):
         print("psutil not found. Unable to set OMP_NUM_THREADS.")
 
 
-def set_seed(seed_value=42):
+def set_seed(seed_value: int = 42):
     """Set all random seeds using `seed_value`."""
     random.seed(seed_value)
     np.random.seed(seed_value)
