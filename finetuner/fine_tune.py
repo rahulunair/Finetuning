@@ -113,6 +113,7 @@ def train(model: FireFinder, trainer: Trainer, config: dict):
     val_acc = trainer.fine_tune(train_dataloader, valid_dataloader)
     model_save_path = f"./models/model_acc_{val_acc}_device_{device}_lr_{trainer.lr}_epochs_{EPOCHS}.pt"
     torch.save(model.state_dict(), model_save_path)
+    print(f"Model saved to :{model_save_path}")
     print(f"Time elapsed: {time.time() - start} seconds.")
 
 
