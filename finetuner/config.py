@@ -60,7 +60,7 @@ def set_device(device=None):
     Otherwise, it will default to CPU or XPU based on availability.
     """
     if device is not None:
-        print(f"Device set to {device} by user.)
+        print(f"Device set to {device} by user.")
         return torch.device(device)
 
     if HAS_XPU:
