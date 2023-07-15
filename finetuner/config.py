@@ -92,5 +92,5 @@ def ncores() -> int:
 # Configuration
 os.environ["KMP_AFFINITY"] = "granularity=fine,compact,1,0"
 os.environ["KMP_BLOCKTIME"] = "1"
-device = set_device("cpu")
+device = set_device("xpu")
 set_config(device)

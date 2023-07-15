@@ -4,17 +4,18 @@ import warnings
 import random
 import time
 import gc
+from typing import Tuple
 
 warnings.filterwarnings("ignore")
 
 import torch
-import numpy as np
 import intel_extension_for_pytorch
+import numpy as np
 import matplotlib.pyplot as plt
 import wandb
 
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 from batch_finder import optimum_batch_size
 from config import set_seed, device
@@ -34,17 +35,41 @@ from trainer import Trainer
 from lr_finder import LearningRateFinder
 from torch import optim
 
+# hyper params
+EPOCHS = 1
+# LR would be changed if we are using a LR finder
+LR = 2.14e-3
 
-# Constants
-EPOCHS = 10
-LR = 2.14e-4
 
-def create_dataloader(directory, batch_size, shuffle=False, transform=None):
+def create_dataloader(
+    directory: str, batch_size: int, shuffle: bool = False, transform=None
+) -> DataLoader:
+    """
+    Create a DataLoader from a directory of images.
+
+    Args:
+        directory (str): Directory containing images.
+        batch_size (int): Batch size for the DataLoader.
+        shuffle (bool, optional): Whether to shuffle the data. Defaults to False.
+        transform ([type], optional): Transformations to apply to the images. Defaults to None.
+
+    Returns:
+        DataLoader: DataLoader with images from the directory.
+    """
     data = datasets.ImageFolder(directory, transform=transform)
     return DataLoader(data, batch_size=batch_size, shuffle=shuffle)
 
 
-def setup_dataloaders(config):
+def setup_dataloaders(config: dict) -> Tuple[DataLoader, DataLoader]:
+    """
+    Setup train and validation DataLoaders.
+
+    Args:
+        config (dict): Configuration dictionary containing batch_size.
+
+    Returns:
+        Tuple[DataLoader, DataLoader]: A tuple containing train and validation dataloaders.
+    """
     return create_dataloader(
         TRAIN_DIR, config["batch_size"], shuffle=True, transform=img_transforms["train"]
     ), create_dataloader(
@@ -52,13 +77,32 @@ def setup_dataloaders(config):
     )
 
 
-def find_lr(model, optimizer, dataloader):
+def find_lr(model: FireFinder, optimizer: optim.Adam, dataloader: DataLoader) -> float:
+    """
+    Find best learning rate using Learning Rate Finder.
+
+    Args:
+        model (FireFinder): FireFinder model.
+        optimizer (optim.Adam): Adam optimizer.
+        dataloader (DataLoader): DataLoader with training data.
+
+    Returns:
+        float: Best learning rate.
+    """
     lr_finder = LearningRateFinder(model, optimizer, device)
     best_lr = lr_finder.lr_range_test(dataloader, start_lr=1e-5, end_lr=1e-2)
     return best_lr
 
 
-def train(model, trainer, config):
+def train(model: FireFinder, trainer: Trainer, config: dict):
+    """
+    Train a FireFinder model.
+
+    Args:
+        model (FireFinder): FireFinder model.
+        trainer (Trainer): Trainer to train the model.
+        config (dict): Configuration dictionary containing learning rate and batch size.
+    """
     train_dataloader, valid_dataloader = setup_dataloaders(config)
     print("training data")
     plot_data_distribution(data_distribution(train_dataloader.dataset, TRAIN_DIR))
@@ -72,31 +116,52 @@ def train(model, trainer, config):
     print(f"Time elapsed: {time.time() - start} seconds.")
 
 
-def main(aug_data=False):
+def main(
+    aug_data: bool = False,
+    find_batch: bool = False,
+    find_lr: bool = False,
+    use_wandb: bool = False,
+    use_ipex=True,
+):
+    """
+    Main function to execute the fine-tuning process.
+
+    Args:
+        aug_data (bool, optional): Whether to augment data. Defaults to False.
+        find_batch (bool, optional): Whether to find optimal batch size. Defaults to False.
+        find_lr (bool, optional): Whether to find optimal learning rate. Defaults to False.
+    """
     set_seed(42)
+
     if aug_data:
         print("Augmenting dataset...")
         augment_and_save(TRAIN_DIR)
         augment_and_save(VALID_DIR)
         print("Done Augmenting...")
-    model = FireFinder(simple=True, dropout=0.5)
-    optimizer = optim.Adam(model.parameters(), lr=LR)
-    print(f"Finding optimum batch size...")
-    # batch_size = optimum_batch_size(model, input_size)
-    batch_size = 128
-    train_dataloader = create_dataloader(
-        TRAIN_DIR,
-        batch_size=batch_size,
-        shuffle=True,
-        transform=img_transforms["train"],
-    )
-    print("Finding best init lr...")
-    best_lr = find_lr(model, optimizer, train_dataloader)
-    print(f"Found best learning rate: {best_lr}")
-    del model, optimizer
-    gc.collect()
-    if device == torch.device("xpu"):
-        torch.xpu.empty_cache()
+
+    batch_size = 128  # Default batch size
+    if find_batch:
+        print(f"Finding optimum batch size...")
+        batch_size = optimum_batch_size(model, input_size)
+
+    best_lr = LR
+    if find_lr:
+        print("Finding best init lr...")
+        model = FireFinder(simple=True, dropout=0.5)
+        optimizer = optim.Adam(model.parameters(), lr=LR)
+        train_dataloader = create_dataloader(
+            TRAIN_DIR,
+            batch_size=batch_size,
+            shuffle=True,
+            transform=img_transforms["train"],
+        )
+        best_lr = find_lr(model, optimizer, train_dataloader)
+        del model, optimizer
+        print(f"Found best learning rate: {best_lr}")
+        gc.collect()
+        if device == torch.device("xpu"):
+            torch.xpu.empty_cache()
+
     model = FireFinder(simple=True, dropout=0.5)
     trainer = Trainer(
         model=model,
@@ -104,11 +169,13 @@ def main(aug_data=False):
         lr=best_lr,
         epochs=EPOCHS,
         device=device,
-        use_wandb=True,
-        use_ipex=True,
+        use_wandb=use_wandb,
+        use_ipex=use_ipex,
     )
     train(model, trainer, config={"lr": best_lr, "batch_size": batch_size})
 
 
 if __name__ == "__main__":
-    main(aug_data=False)
+    main(
+        aug_data=False, find_batch=False, find_lr=False, use_wandb=False, use_ipex=True
+    )
