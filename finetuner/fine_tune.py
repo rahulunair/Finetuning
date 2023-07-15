@@ -133,6 +133,7 @@ def main(
         find_lr (bool, optional): Whether to find optimal learning rate. Defaults to False.
     """
     set_seed(42)
+    print(f"Using epoch: {EPOCHS}")
 
     if aug_data:
         print("Augmenting dataset...")
@@ -144,6 +145,7 @@ def main(
     if find_batch:
         print(f"Finding optimum batch size...")
         batch_size = optimum_batch_size(model, input_size)
+    print(f"Using batch size: {batch_size}")
 
     best_lr = LR
     if find_lr:
@@ -158,10 +160,10 @@ def main(
         )
         best_lr = find_lr(model, optimizer, train_dataloader)
         del model, optimizer
-        print(f"Found best learning rate: {best_lr}")
         gc.collect()
         if device == torch.device("xpu"):
             torch.xpu.empty_cache()
+    print(f"Using learning rate: {best_lr}")
 
     model = FireFinder(simple=True, dropout=0.5)
     trainer = Trainer(
