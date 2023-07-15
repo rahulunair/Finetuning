@@ -1,0 +1,6 @@
+wandb
+plotext
+opencv-python
+albumentations
+tabulate
+
