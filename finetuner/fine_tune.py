@@ -111,4 +111,4 @@ def main(aug_data=False):
 
 
 if __name__ == "__main__":
-    main(aug_data=True)
+    main(aug_data=False)
