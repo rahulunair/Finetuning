@@ -34,6 +34,14 @@ from model import FireFinder
 from trainer import Trainer
 from lr_finder import LearningRateFinder
 from torch import optim
+from model_utils import (
+    save_model,
+    load_model,
+    convert_save_torchscript,
+    load_torchscript_model,
+    load_data,
+    run_inference,
+)
 
 # hyper params
 EPOCHS = 1
@@ -143,7 +151,7 @@ def main(
         print(f"Done Augmenting in {time.time() - t1} seconds...")
 
     batch_size = 128  # Default batch size
-    model = FireFinder(simple=True, dropout=0.5)
+    model = FireFinder(simple=False, dropout=0.2)
     optimizer = optim.Adam(model.parameters(), lr=LR)
     if find_batch:
         print(f"Finding optimum batch size...")
@@ -178,8 +186,29 @@ def main(
     )
     train(model, trainer, config={"lr": best_lr, "batch_size": batch_size})
 
+    # saving model to state dict
+    save_model(model, "./models/ff_model.pt")
+    convert_save_torchscript(model, "./models/ff_tscript.pt")
+    del model
+    test_data = load_data("/home/orange/Finetuning/finetuner/data/gen_output/val")
+    model = load_model("./models/ff_model.pt")
+    t1 = time.time()
+    print(f"Running inference using saved state dict model : {run_inference(model, test_data)}")
+    t2 = time.time()
+    del model
+    print(f"inference time: {t2 - t1} seconds")
+    model = load_torchscript_model("./models/ff_tscript.pt")
+    t1 = time.time()
+    print(f"Running inference using torchscript saved model : {run_inference(model, test_data)}")
+    t2 = time.time()
+    print(f"inference time: {t2 - t1} seconds")
+
 
 if __name__ == "__main__":
     main(
-        aug_data=False, find_batch=True, find_lr_rate=True, use_wandb=True, use_ipex=True
+        aug_data=False,
+        find_batch=False,
+        find_lr_rate=False,
+        use_wandb=True,
+        use_ipex=True,
     )
